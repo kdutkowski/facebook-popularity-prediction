@@ -32,3 +32,7 @@ ggplot(rawData, aes(x=rawData[, 169])) +
 ggplot(dataWithoutOutliers, aes(x=dataWithoutOutliers[, 169])) + 
   geom_histogram(bins = 50) +
   scale_x_log10()
+
+# Correlation between inputs 1:24 and output
+correlationIndexes = 1:24 + 1
+correlations <- lapply(dataWithoutOutliers[, correlationIndexes], function (x) { cor(x, dataWithoutOutliers[, 169]) })
