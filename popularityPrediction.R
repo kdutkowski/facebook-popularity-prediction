@@ -34,19 +34,23 @@ summary(rawData[, statisticsParametersIndices])
 
 # Plot distribution histogram
 ggplot(rawData, aes(x = rawData[, 168])) +
-  geom_histogram(bins = 50)
+  labs(title = "Distribution of v(168)", x = "Number of views in 168h") +
+  geom_histogram(aes(y=..density..), bins = 50)
 
 # Plot logx distribution histogram
 rawData$log168 <- log(rawData[, 168])
 ggplot(rawData, aes(x = rawData$log168)) +
-  geom_histogram(bins = 50)
+  labs(title = "Distribution of log(v(168))", x = "Number of views in 168h") +
+  geom_histogram(aes(y=..density..), bins = 50)
 
 # Extract the values of v(168)
 dataWithoutOutliers <- removeOutliers(rawData, "log168")
 
 # Plot logx distribution histogram without outliers
 ggplot(dataWithoutOutliers, aes(x = dataWithoutOutliers$log168)) +
-  geom_histogram(bins = 50)
+  labs(title = "Distribution of log(v(168)) without outliers", x = "Number of views in 168h") +
+  stat_function(fun=dnorm, args=list(mean=mean(dataWithoutOutliers$log168), sd=sd(dataWithoutOutliers$log168))) +
+  geom_histogram(aes(y=..density..), bins = 50)
 
 # Correlation between inputs 1:24 and output
 regressionParametersIndices = 1:24
