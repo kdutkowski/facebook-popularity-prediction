@@ -50,21 +50,27 @@ inTraining <- createDataPartition(dataWithoutOutliers$log169, p = .9,
 trainData <- dataWithoutOutliers[ inTraining,]
 testData <- dataWithoutOutliers[-inTraining,]
 
+# Initialize the data frame for results
 results <- data.frame(time = 1:length(regressionParametersIndices))
 
+# For each reference time create the single parameter model and calculate rMSE
 results$singleInput <- sapply(regressionParametersIndices, function(x) {
   model <- lm(as.formula(paste("log169 ~", colnames(trainData)[x])), data = trainData)
   predicted <- predict(model, testData)
   return(rMse(testData$log169, predicted))
 })
 
+# The same for model built on all views preceding the reference time
 results$multipleInputs <- sapply(regressionParametersIndices, function(x) {
   model <- lm(as.formula(paste("log169 ~", paste(colnames(trainData)[2:x], collapse = "+"))), data = trainData)
   predicted <- predict(model, testData)
   return(rMse(testData$log169, predicted))
 })
 
+# Plot mRSE for both models
 meltedResults <- melt(results, id="time")
-ggplot(data=meltedResults, aes(x=time, y=value, colour=variable, shape=variable)) +
-        geom_point() +
-        geom_line()
+ggplot(data=meltedResults, aes(x=time, y=value, group=variable, colour=variable, shape=variable)) + 
+  labs(y="mRSE", 
+       x="Reference time (n)") +
+  geom_point() +
+  geom_line()
