@@ -35,13 +35,13 @@ summary(rawData[, statisticsParametersIndices])
 # Plot distribution histogram
 ggplot(rawData, aes(x = rawData[, 168])) +
   labs(title = "Distribution of v(168)", x = "Number of views in 168h") +
-  geom_histogram(aes(y=..density..), bins = 50)
+  geom_histogram(aes(y=..density..), bins = 50, colour="black", fill="white")
 
 # Plot logx distribution histogram
 rawData$log168 <- log(rawData[, 168])
 ggplot(rawData, aes(x = rawData$log168)) +
   labs(title = "Distribution of log(v(168))", x = "Number of views in 168h") +
-  geom_histogram(aes(y=..density..), bins = 50)
+  geom_histogram(aes(y=..density..), bins = 50, colour="black", fill="white")
 
 # Extract the values of v(168)
 dataWithoutOutliers <- removeOutliers(rawData, "log168")
@@ -49,8 +49,8 @@ dataWithoutOutliers <- removeOutliers(rawData, "log168")
 # Plot logx distribution histogram without outliers
 ggplot(dataWithoutOutliers, aes(x = dataWithoutOutliers$log168)) +
   labs(title = "Distribution of log(v(168)) without outliers", x = "Number of views in 168h") +
-  stat_function(fun=dnorm, args=list(mean=mean(dataWithoutOutliers$log168), sd=sd(dataWithoutOutliers$log168))) +
-  geom_histogram(aes(y=..density..), bins = 50)
+  geom_histogram(aes(y=..density..), bins = 50, colour="black", fill="white") +
+  stat_function(colour="red", fun=dnorm, args=list(mean=mean(dataWithoutOutliers$log168), sd=sd(dataWithoutOutliers$log168)))
 
 # Correlation between inputs 1:24 and output
 regressionParametersIndices = 1:24
@@ -82,6 +82,7 @@ results$multipleInputs <- sapply(regressionParametersIndices, function(x) {
       "log168 ~", paste(colnames(trainData)[1:x], collapse = "+")
     )), data = trainData)
   predicted <- predict(model, testData)
+  
   return(rMse(testData$log168, predicted))
 })
 
@@ -98,4 +99,6 @@ ggplot(data = meltedResults,
   labs(y = "mRSE",
        x = "Reference time (n)") +
   geom_point() +
-  geom_line()
+  geom_line() +
+  scale_shape_discrete(name  ="", labels = c("Linear regression", "Multiple Input Linear regression")) +
+  scale_colour_discrete(name  ="", labels = c("Linear regression", "Multiple Input Linear regression"))
