@@ -1,8 +1,11 @@
 \documentclass[12pt, a4paper]{exam}
+\usepackage[utf8]{inputenc}
 \usepackage[OT1]{fontenc}
 \usepackage{Sweave}
+\usepackage{float}
+\usepackage{hyperref}
 \SweaveOpts{echo=FALSE}
-\usepackage{hyperref}            
+\PassOptionsToPackage{hyphens}{url}\usepackage{hyperref}
 \hypersetup{pdfpagelayout=SinglePage}
 \setkeys{Gin}{width=0.8\textwidth}
 \pagestyle{headandfoot} % every page has a header and footer
@@ -11,32 +14,64 @@
 
 \begin{document}
 
+\title{PREDICT VIRALITY - EXERCISE}
+
+\author{Jakub Dutkowski}
+
+\maketitle
+
 <<echo = false>>=
 library(ggplot2)
 library(reshape2)
 library(caret)
-
-rawData <- read.csv('data/data.csv', row.names = 1, header = FALSE, col.names = c("id", paste("h", 1:168, sep = "")))
+library(xtable)
+rawData <- read.csv('data/data.csv', row.names = 1, header = FALSE, 
+                    col.names = c("id", paste("h", 1:168, sep = "")))
 @
 
-<<echo = true>>=
+
+\section{Basic data statistics}
+First, the summary of $v(24), v(72), v(168)$ has been computed.
+<<echo = false>>=
 summary(rawData[, c(24, 72, 168)])
 @
 
-<< fig = true, echo = false>>=
+\section{Views distribution}
+\subsection{Distribution of raw data}
+The distribution of data is shown in \autoref{fig:distribution-raw} The highest density is observed in the lower value, but the tail of distribution is very long. Looks similar to log-normal distribution density plot, which is proved by what happens in the following steps.
+
+\begin{figure}[H]
+\begin{center}
+\includegraphics{popularityPrediction-distribution-raw}
+\end{center}
+\caption{Distribution of v(168)}
+\label{fig:distribution-raw}
+\end{figure}
+
+<<distribution-raw, fig = true, echo = false, include = false>>=
 ggplot(rawData, aes(x = rawData[, 168])) +
   labs(title = "Distribution of v(168)", x = "Number of views in 168h") +
   geom_histogram(aes(y=..density..), bins = 50, colour="black", fill="white")
 @
 
-<< fig = true, echo = false>>=
+\subsection{Distribution of log transformed views}
+After log-transformation, the $v(168)$ seem to follow a normal distribution (it is a bit skewed) \autoref{fig:distribution-log}.
+\begin{figure}[H]
+\begin{center}
+\includegraphics{popularityPrediction-distribution-log}
+\end{center}
+\caption{Distribution of log(v(168))}
+\label{fig:distribution-log}
+\end{figure}
+<<distribution-log, fig = true, echo = false, include = false>>=
 rawData$log168 <- log(rawData[, 168])
 ggplot(rawData, aes(x = rawData$log168)) +
   labs(title = "Distribution of log(v(168))", x = "Number of views in 168h") +
   geom_histogram(aes(y=..density..), bins = 50, colour="black", fill="white")
 @
 
-<<>>=
+\subsection{Outlier removal}
+<<echo = false>>=
 # A function that removes outliers from data frame according to
 # 3-sigma rule, based on column specified with colIndex
 removeOutliers <- function(dataFrame, colIndex) {
@@ -50,18 +85,31 @@ removeOutliers <- function(dataFrame, colIndex) {
 dataWithoutOutliers <- removeOutliers(rawData, "log168")
 @
 
-<<fig = true, echo = false>>=
+After removing data points that don't fall within 3 sigmas, the distribution is less skewed and matches normal distribution fairly well \autoref{fig:distribution-log-outliers}.
+\begin{figure}[H]
+\begin{center}
+\includegraphics{popularityPrediction-distribution-log-outliers}
+\end{center}
+\caption{Distribution of log(v(168)) without outliers with fitted normal distribution curve}
+\label{fig:distribution-log-outliers}
+\end{figure}
+<<distribution-log-outliers, fig = true, echo = false, include = false>>=
 ggplot(dataWithoutOutliers, aes(x = dataWithoutOutliers$log168)) +
   labs(title = "Distribution of log(v(168)) without outliers", x = "Number of views in 168h") +
   geom_histogram(aes(y=..density..), bins = 50, colour="black", fill="white") +
   stat_function(colour="red", fun=dnorm, args=list(mean=mean(dataWithoutOutliers$log168), sd=sd(dataWithoutOutliers$log168)))
 @
 
-<<>>=
+\section{Regression}
+\subsection{Correlation coefficients}
+The table \autoref{tab:correlation} shows that there is a strong linear relationship between the number of views in first 24h and v(168). The $r$ coefficient falls within the range of $0.7-0.8$.
+<<correlation, echo = false, eval = true, results=tex, include = false>>=
 regressionParametersIndices <- 1:24
-sapply(dataWithoutOutliers[, regressionParametersIndices], function (x) {
+correlation <- sapply(dataWithoutOutliers[, regressionParametersIndices], function (x) {
   cor(x, dataWithoutOutliers$log168)
 })
+
+print(xtable(as.data.frame(correlation), caption="Correlation between v(1) - v(24) and v(168)", label="tab:correlation", table.placement = ""))
 @
 
 <<echo = false>>=
@@ -74,6 +122,9 @@ testData <- dataWithoutOutliers[-inTraining, ]
 # Initialize the data frame for results
 results <- data.frame(time = regressionParametersIndices)
 @
+
+\subsection{Linear regression predictions}
+The data has been randomly split to training and test sets in the proportion on $9:1$. Then linear regression was performed on the data. The mean Relative Squared Error for test data values for single and multiple input variables is shown in \autoref{fig:results}.
 
 <<>>=
 rMse <- function(trueValue, predictedValue) {
@@ -103,7 +154,15 @@ results$multipleInputs <- sapply(regressionParametersIndices, function(x) {
 })
 @
 
-<<fig = true, echo = false>>=
+\begin{figure}[]
+\begin{center}
+\includegraphics{popularityPrediction-results}
+\end{center}
+\caption{rMSE results for linear regression}
+\label{fig:results}
+\end{figure}
+
+<<results, fig = true, echo = false, include = false>>=
 meltedResults <- melt(results, id = "time")
 ggplot(data = meltedResults,
        aes(
@@ -116,7 +175,9 @@ ggplot(data = meltedResults,
   labs(y = "mRSE",
        x = "Reference time (n)") +
   geom_point() +
-  geom_line()
+  geom_line() +
+  scale_shape_discrete(name  ="", labels = c("Linear regression", "Multiple Input Linear regression")) +
+  scale_colour_discrete(name  ="", labels = c("Linear regression", "Multiple Input Linear regression"))
 @
 
-\end{document}
+\end{document}  
